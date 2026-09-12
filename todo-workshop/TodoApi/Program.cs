@@ -34,5 +34,17 @@ app.MapGet("/api/todos/{id}", (int id) =>
 
 
 
+app.MapPost("/api/todos", (TodoUpdateDto dto) =>
+{
+  var nextId = todos.Count == 0 ? 1 : todos.Max(x => x.Id) + 1;
+  var todo = new TodoGetDto(nextId, dto.Title, false);
+  todos.Add(todo);
+
+  return Results.Created($"/api/todos/{todo.Id}", todo);
+});
+
+
+
+
 app.Run();
 
