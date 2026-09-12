@@ -25,14 +25,14 @@ app.MapGet("/api/todos", () => Results.Ok(todos));
 
 app.MapGet("/api/todos/{id}", (int id) =>
 {
-  var todo = todos.FirstOrDefault(t => t.Id == id);
-  return todo;
+  var todo = todos.FirstOrDefault(x => x.Id == id);
+
+  return todo is null
+      ? Results.NotFound()
+      : Results.Ok(todo);
 });
+
 
 
 app.Run();
 
-record WeatherForecast(DateOnly Date, int TemperatureC, string? Summary)
-{
-  public int TemperatureF => 32 + (int)(TemperatureC / 0.5556);
-}
