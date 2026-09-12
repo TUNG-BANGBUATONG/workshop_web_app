@@ -21,7 +21,15 @@ var todos = new List<TodoGetDto>
   new TodoGetDto(3, "Build a web API", false)
 };
 
-app.MapGet("/todos", () => Results.Ok(todos));
+app.MapGet("/api/todos", () => Results.Ok(todos));
+
+app.MapGet("/api/todos/{id}", (int id) =>
+{
+  var todo = todos.FirstOrDefault(t => t.Id == id);
+  return todo;
+});
+
+
 app.Run();
 
 record WeatherForecast(DateOnly Date, int TemperatureC, string? Summary)
