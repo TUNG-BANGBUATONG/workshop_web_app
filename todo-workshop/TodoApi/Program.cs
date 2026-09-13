@@ -21,6 +21,7 @@ if (app.Environment.IsDevelopment())
 }
 
 app.UseHttpsRedirection();
+#region In-memory endpoints
 var todos = new List<TodoGetDto>
 {
   new TodoGetDto(1, "Learn C#", true),
@@ -28,11 +29,13 @@ var todos = new List<TodoGetDto>
   new TodoGetDto(3, "Build a web API", false)
 };
 
+var todoGroup = app.MapGroup("/api/todos");
+
 // 1. GET: ดึงรายการ Todo ทั้งหมด
-app.MapGet("/api/todos", () => Results.Ok(todos));
+todoGroup.MapGet("/", () => Results.Ok(todos));
 
 // 2. GET by ID: ดึงข้อมูล Todo ตาม ID ที่ระบุ
-app.MapGet("/api/todos/{id}", (int id) =>
+todoGroup.MapGet("/{id}", (int id) =>
 {
   var todo = todos.FirstOrDefault(x => x.Id == id);
 
@@ -45,7 +48,7 @@ app.MapGet("/api/todos/{id}", (int id) =>
 
 
 // 3. POST: สร้าง Todo รายการใหม่
-app.MapPost("/api/todos", (TodoUpdateDto dto) =>
+todoGroup.MapPost("/", (TodoUpdateDto dto) =>
 {
   // หาค่า ID ถัดไป (Max ID + 1)
   var nextId = todos.Count == 0 ? 1 : todos.Max(x => x.Id) + 1;
@@ -60,7 +63,7 @@ app.MapPost("/api/todos", (TodoUpdateDto dto) =>
 
 
 // 4. PUT: อัปเดตข้อมูล Todo ตาม ID (อัปเดตทั้งหมดทั้ง Title และ IsCompleted)
-app.MapPut("/api/todos/{id}", (int id, TodoPutDto dto) =>
+todoGroup.MapPut("/{id}", (int id, TodoPutDto dto) =>
 {
   // ค้นหา Index ของรายการที่ต้องการแก้ไข
   var index = todos.FindIndex(x => x.Id == id);
@@ -75,7 +78,7 @@ app.MapPut("/api/todos/{id}", (int id, TodoPutDto dto) =>
 });
 
 // 5. DELETE: ลบข้อมูล Todo ตาม ID
-app.MapDelete("/api/todos/{id}", (int id) =>
+todoGroup.MapDelete("/{id}", (int id) =>
 {
   // ค้นหา Index ของรายการที่ต้องการลบ
   var index = todos.FindIndex(x => x.Id == id);
@@ -87,6 +90,55 @@ app.MapDelete("/api/todos/{id}", (int id) =>
   // คืนค่า 204 No Content (ลบสำเร็จแต่ไม่มีข้อมูลส่งกลับ)
   return Results.NoContent();
 });
+
+#endregion
+
+#region Database endpoints
+var dbGroup = app.MapGroup("/api/db/todos");
+
+// GET: ดึงรายการ Todo ทั้งหมดจาก Database
+dbGroup.MapGet("/", async (AppDbContext db) =>
+{
+  var todos = await db.Todoitems.ToListAsync();
+  
+  // แปลงจาก Model เป็น Dto ก่อนส่งกลับ (เป็น Best Practice)
+  var resultDtos = todos.Select(t => new TodoGetDto(t.Id, t.Title ?? "", t.IsCompleted)).ToList();
+  
+  return Results.Ok(resultDtos);
+});
+
+// GET by ID: ดึงข้อมูล Todo ตาม ID จาก Database
+dbGroup.MapGet("/{id}", async (int id, AppDbContext db) =>
+{
+  var todo = await db.Todoitems.FindAsync(id);
+
+  if (todo is null) return Results.NotFound();
+
+  var resultDto = new TodoGetDto(todo.Id, todo.Title ?? "", todo.IsCompleted);
+  return Results.Ok(resultDto);
+});
+
+// POST: สร้าง Todo ลง Database จริง
+dbGroup.MapPost("/", async (TodoUpdateDto dto, AppDbContext db) =>
+{
+  // 1. นำข้อมูลจาก Dto มาใส่ใน Model ที่จะบันทึกลง Database
+  var todo = new Todoitem
+  {
+      Title = dto.Title,
+      IsCompleted = false,
+      CreatedDate = DateTime.Now // บันทึกเวลาปัจจุบัน
+  };
+
+  // 2. สั่งเพิ่มข้อมูลลง Context และ Save ลงฐานข้อมูล
+  db.Todoitems.Add(todo);
+  await db.SaveChangesAsync(); // อย่าลืม await เพราะเป็นการทำงานกับ Database
+
+  // 3. แปลงกลับเป็น Dto เพื่อส่งข้อมูลกลับไปให้ผู้ใช้
+  var resultDto = new TodoGetDto(todo.Id, todo.Title ?? "", todo.IsCompleted);
+
+  return Results.Created($"/api/db/todos/{todo.Id}", resultDto);
+});
+#endregion
 
 app.Run();
 
