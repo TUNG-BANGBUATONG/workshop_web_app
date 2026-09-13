@@ -16,18 +16,20 @@ builder.Services.AddOpenApi();
 builder.Services.AddDbContext<AppDbContext>(options =>
     options.UseSqlite(builder.Configuration.GetConnectionString("DefaultConnection")));
 
+
 var jwtKey = "this_is_a_very_secret_key_for_jwt_workshop_12345";
+
 
 builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
     .AddJwtBearer(options =>
     {
-        options.TokenValidationParameters = new TokenValidationParameters
-        {
-            ValidateIssuerSigningKey = true,
-            IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(jwtKey)),
-            ValidateIssuer = false,
-            ValidateAudience = false
-        };
+      options.TokenValidationParameters = new TokenValidationParameters
+      {
+        ValidateIssuerSigningKey = true,
+        IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(jwtKey)),
+        ValidateIssuer = false,
+        ValidateAudience = false
+      };
     });
 
 builder.Services.AddAuthorization();
@@ -35,7 +37,7 @@ builder.Services.AddAuthorization();
 var app = builder.Build();
 
 
-// Configure the HTTP request pipeline.
+
 if (app.Environment.IsDevelopment())
 {
   app.MapOpenApi();
@@ -43,19 +45,20 @@ if (app.Environment.IsDevelopment())
 
 app.UseHttpsRedirection();
 
+
 app.UseAuthentication();
 app.UseAuthorization();
 
 app.MapPost("/api/login", () =>
 {
-    var securityKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes("this_is_a_very_secret_key_for_jwt_workshop_12345"));
-    var credentials = new SigningCredentials(securityKey, SecurityAlgorithms.HmacSha256);
+  var securityKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes("this_is_a_very_secret_key_for_jwt_workshop_12345"));
+  var credentials = new SigningCredentials(securityKey, SecurityAlgorithms.HmacSha256);
 
-    var token = new JwtSecurityToken(
-        expires: DateTime.Now.AddHours(1),
-        signingCredentials: credentials);
+  var token = new JwtSecurityToken(
+      expires: DateTime.Now.AddHours(1),
+      signingCredentials: credentials);
 
-    return Results.Ok(new { token = new JwtSecurityTokenHandler().WriteToken(token) });
+  return Results.Ok(new { token = new JwtSecurityTokenHandler().WriteToken(token) });
 });
 #region In-memory endpoints
 var todos = new List<TodoGetDto>
@@ -73,7 +76,7 @@ todoGroup.MapGet("/{id}", (int id) =>
 {
   var todo = todos.FirstOrDefault(x => x.Id == id);
   return todo is null ? Results.NotFound() : Results.Ok(todo);
-});
+}).RequireAuthorization();
 
 todoGroup.MapPost("/", (TodoUpdateDto dto) =>
 {
@@ -81,7 +84,7 @@ todoGroup.MapPost("/", (TodoUpdateDto dto) =>
   var todo = new TodoGetDto(nextId, dto.Title, false);
   todos.Add(todo);
   return Results.Created($"/api/todos/{todo.Id}", todo);
-});
+}).RequireAuthorization();
 
 todoGroup.MapPut("/{id}", (int id, TodoPutDto dto) =>
 {
@@ -105,6 +108,7 @@ todoGroup.MapDelete("/{id}", (int id) =>
 #endregion
 
 #region Database endpoints
+// เพิ่ม RequireAuthorization() เพื่อบังคับว่า Group นี้ต้องแนบ Token
 var dbGroup = app.MapGroup("/api/db/todos").RequireAuthorization();
 
 dbGroup.MapGet("/", async (AppDbContext db) =>
