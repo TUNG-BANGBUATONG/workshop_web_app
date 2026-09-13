@@ -118,25 +118,33 @@ dbGroup.MapGet("/{id}", async (int id, AppDbContext db) =>
   return Results.Ok(resultDto);
 });
 
-// POST: สร้าง Todo ลง Database จริง
+// POST: สร้าง Todo ลง Database จริง (พร้อม Try-Catch)
 dbGroup.MapPost("/", async (TodoUpdateDto dto, AppDbContext db) =>
 {
-  // 1. นำข้อมูลจาก Dto มาใส่ใน Model ที่จะบันทึกลง Database
-  var todo = new Todoitem
+  try
   {
-      Title = dto.Title,
-      IsCompleted = false,
-      CreatedDate = DateTime.Now // บันทึกเวลาปัจจุบัน
-  };
+      // 1. นำข้อมูลจาก Dto มาใส่ใน Model ที่จะบันทึกลง Database
+      var todo = new Todoitem
+      {
+          Title = dto.Title,
+          IsCompleted = false,
+          CreatedDate = DateTime.Now // บันทึกเวลาปัจจุบัน
+      };
 
-  // 2. สั่งเพิ่มข้อมูลลง Context และ Save ลงฐานข้อมูล
-  db.Todoitems.Add(todo);
-  await db.SaveChangesAsync(); // อย่าลืม await เพราะเป็นการทำงานกับ Database
+      // 2. สั่งเพิ่มข้อมูลลง Context และ Save ลงฐานข้อมูล
+      db.Todoitems.Add(todo);
+      await db.SaveChangesAsync(); // อย่าลืม await เพราะเป็นการทำงานกับ Database
 
-  // 3. แปลงกลับเป็น Dto เพื่อส่งข้อมูลกลับไปให้ผู้ใช้
-  var resultDto = new TodoGetDto(todo.Id, todo.Title ?? "", todo.IsCompleted);
+      // 3. แปลงกลับเป็น Dto เพื่อส่งข้อมูลกลับไปให้ผู้ใช้
+      var resultDto = new TodoGetDto(todo.Id, todo.Title ?? "", todo.IsCompleted);
 
-  return Results.Created($"/api/db/todos/{todo.Id}", resultDto);
+      return Results.Created($"/api/db/todos/{todo.Id}", resultDto);
+  }
+  catch (Exception ex)
+  {
+      // ถ้ามี Error เกิดขึ้น (เช่น Database ล่ม หรือเซฟไม่ได้) จะเข้ามาระเบิดที่นี่แทนโปรแกรมพัง
+      return Results.Problem($"เกิดข้อผิดพลาดในระบบ: {ex.Message}", statusCode: 500);
+  }
 });
 #endregion
 
