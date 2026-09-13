@@ -1,11 +1,18 @@
+using Microsoft.EntityFrameworkCore;
+using TodoApi.Data;
+using TodoApi.Models;
 using TodoApi.Dtos;
 var builder = WebApplication.CreateBuilder(args);
+
 
 // Add services to the container.
 // Learn more about configuring OpenAPI at https://aka.ms/aspnet/openapi
 builder.Services.AddOpenApi();
+builder.Services.AddDbContext<AppDbContext>(options =>
+    options.UseSqlite(builder.Configuration.GetConnectionString("DefaultConnection")));
 
 var app = builder.Build();
+
 
 // Configure the HTTP request pipeline.
 if (app.Environment.IsDevelopment())
@@ -43,7 +50,7 @@ app.MapPost("/api/todos", (TodoUpdateDto dto) =>
   // หาค่า ID ถัดไป (Max ID + 1)
   var nextId = todos.Count == 0 ? 1 : todos.Max(x => x.Id) + 1;
   var todo = new TodoGetDto(nextId, dto.Title, false);
-  
+
   // เพิ่มข้อมูลใหม่ลงใน List
   todos.Add(todo);
 
@@ -76,7 +83,7 @@ app.MapDelete("/api/todos/{id}", (int id) =>
 
   // ลบออกจาก List
   todos.RemoveAt(index);
-  
+
   // คืนค่า 204 No Content (ลบสำเร็จแต่ไม่มีข้อมูลส่งกลับ)
   return Results.NoContent();
 });
